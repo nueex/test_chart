@@ -3,89 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradingView Candlestick Chart</title>
+    <title>Candlestick Chart with Live Update</title>
+    <script type="text/javascript" src="https://unpkg.com/lightweight-charts@3.6.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        /* إضافة بعض التنسيق البسيط */
         body {
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            height: 100%;
+            background-color: #f4f4f4;
+            font-family: Arial, sans-serif;
         }
-
         #chart {
             width: 100%;
-            height: 80%;
+            height: 500px;
         }
     </style>
 </head>
 <body>
+    <div id="chart"></div>
 
-<div id="chart"></div>
+    <script type="text/javascript">
+        // جلب البيانات من الـ API
+        async function fetchCandlestickData() {
+            const apiUrl = 'https://fxtrade-test.onrender.com/candlestick_data?currency_pair=GBPUSD=X&api_key=81579d9059d44032ba4ca8c40e15267b';
+            const response = await fetch(apiUrl);
+            const data = await response.json();
 
-<script src="https://cdn.jsdelivr.net/npm/@tradingview/charting-library@latest/charting_library.min.js"></script>
-<script>
-    const apiUrl = 'https://fxtrade-test.onrender.com/candlestick_data?currency_pair=GBPUSD=X&api_key=81579d9059d44032ba4ca8c40e15267b';
-
-    // جلب البيانات من الـ API
-    async function fetchCandlestickData() {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-
-        console.log('Candlestick Data:', data);  // طباعة البيانات في الكونسول للتحقق منها
-
-        const candlesticks = data.map(item => ({
-            time: new Date(item["('Datetime', '')"]).getTime() / 1000, // تحويل التاريخ إلى UNIX timestamp
-            open: item["('Open', 'GBPUSD=X')"],
-            high: item["('High', 'GBPUSD=X')"],
-            low: item["('Low', 'GBPUSD=X')"],
-            close: item["('Close', 'GBPUSD=X')"]
-        }));
-
-        return candlesticks;
-    }
-
-    // تهيئة الرسم البياني
-    async function initializeChart() {
-        const candlestickData = await fetchCandlestickData();
-
-        if (candlestickData.length === 0) {
-            console.log('No data to display!');
-            return;
+            return data.map(item => ({
+                time: new Date(item["('Datetime', '')"]).getTime() / 1000,  // تحويل الوقت إلى timestamp
+                open: item["('Open', 'GBPUSD=X')"],
+                high: item["('High', 'GBPUSD=X')"],
+                low: item["('Low', 'GBPUSD=X')"],
+                close: item["('Close', 'GBPUSD=X')"]
+            }));
         }
 
-        const chart = new TradingView.widget({
-            autosize: true,
-            symbol: "GBPUSD=X",
-            interval: "60",  // 60 دقيقة كإعداد افتراضي
-            container_id: "chart",
-            datafeed: new Datafeeds.UDFCompatibleDatafeed({}),
-            library_path: "https://cdn.jsdelivr.net/npm/@tradingview/charting-library@latest/charting_library.min.js",
-            theme: "Light",
-            timezone: "Etc/UTC",
-            studies_overrides: {},
-            chart_type: "candlestick",
-            toolbar_bg: "#f1f3f6"
+        // إنشاء المخطط
+        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+            width: window.innerWidth,
+            height: 500,
+            layout: {
+                backgroundColor: '#ffffff',
+                textColor: '#000000',
+            },
+            grid: {
+                vertLines: {
+                    color: '#eee',
+                },
+                horzLines: {
+                    color: '#eee',
+                },
+            },
+            crosshair: {
+                vertLine: {
+                    color: '#ff6600',
+                    width: 1,
+                },
+                horzLine: {
+                    color: '#ff6600',
+                    width: 1,
+                },
+            },
         });
-        
-        chart.onChartReady(() => {
-            chart.addCandlestickSeries({
-                upColor: '#4fff72',
-                borderUpColor: '#4fff72',
-                wickUpColor: '#4fff72',
-                downColor: '#ff4976',
-                borderDownColor: '#ff4976',
-                wickDownColor: '#ff4976'
-            });
 
-            chart.updateData(candlestickData);
-        });
-    }
+        // إضافة سلسلة الشموع إلى المخطط
+        const candleSeries = chart.addCandlestickSeries();
 
-    initializeChart();
-</script>
+        // جلب البيانات وملء المخطط بها
+        async function initializeChart() {
+            const candlestickData = await fetchCandlestickData();
+            candleSeries.setData(candlestickData);
+        }
 
+        initializeChart();
+
+        // تحديث البيانات كل ساعة (تحديث بيانات الشموع من API أو مصدر بيانات آخر)
+        setInterval(async () => {
+            // هنا نقوم بتحديث البيانات (يمكنك الحصول عليها من API أو قاعدة بيانات)
+            const candlestickData = await fetchCandlestickData();
+            // تحديث المخطط بالبيانات الجديدة
+            candleSeries.setData(candlestickData);
+        }, 3600000); // كل 3600 ثانية (ساعة)
+    </script>
 </body>
 </html>
