@@ -3,65 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candlestick Chart - TradingView</title>
-    <script type="text/javascript" src="https://unpkg.com/@tradingview/charting-library@latest/charting_library.min.js"></script>
+    <title>TradingView Candlestick Chart</title>
+    <style>
+        /* إضافة بعض التنسيق البسيط */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #chart {
+            width: 100%;
+            height: 80%;
+        }
+    </style>
 </head>
 <body>
-    <div id="tv_chart_container" style="height: 600px; width: 100%;"></div>
 
-    <script>
-        const apiUrl = 'https://fxtrade-test.onrender.com/candlestick_data?currency_pair=GBPUSD=X&api_key=81579d9059d44032ba4ca8c40e15267b';
+<div id="chart"></div>
 
-        // دالة لجلب البيانات
-        async function fetchCandlestickData() {
-            const response = await fetch(apiUrl);
-            const data = await response.json();
+<script src="https://cdn.jsdelivr.net/npm/@tradingview/charting-library@latest/charting_library.min.js"></script>
+<script>
+    const apiUrl = 'https://fxtrade-test.onrender.com/candlestick_data?currency_pair=GBPUSD=X&api_key=81579d9059d44032ba4ca8c40e15267b';
 
-            const candlesticks = data.map(item => ({
-                time: new Date(item["('Datetime', '')"]).getTime() / 1000, // تحويل التاريخ إلى UNIX timestamp
-                open: item["('Open', 'GBPUSD=X')"],
-                high: item["('High', 'GBPUSD=X')"],
-                low: item["('Low', 'GBPUSD=X')"],
-                close: item["('Close', 'GBPUSD=X')"]
-            }));
+    // جلب البيانات من الـ API
+    async function fetchCandlestickData() {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
 
-            return candlesticks;
+        console.log('Candlestick Data:', data);  // طباعة البيانات في الكونسول للتحقق منها
+
+        const candlesticks = data.map(item => ({
+            time: new Date(item["('Datetime', '')"]).getTime() / 1000, // تحويل التاريخ إلى UNIX timestamp
+            open: item["('Open', 'GBPUSD=X')"],
+            high: item["('High', 'GBPUSD=X')"],
+            low: item["('Low', 'GBPUSD=X')"],
+            close: item["('Close', 'GBPUSD=X')"]
+        }));
+
+        return candlesticks;
+    }
+
+    // تهيئة الرسم البياني
+    async function initializeChart() {
+        const candlestickData = await fetchCandlestickData();
+
+        if (candlestickData.length === 0) {
+            console.log('No data to display!');
+            return;
         }
 
-        // دالة لتهيئة الشارت
-        async function initializeChart() {
-            const candlestickData = await fetchCandlestickData();
-
-            const widget = new TradingView.widget({
-                autosize: true,
-                symbol: 'GBPUSD=X', // هذا يمكن تغييره حسب العملة
-                interval: '60', // يمكن تغييره حسب الحاجة
-                container_id: "tv_chart_container",
-                datafeed: {
-                    onReady: cb => cb(),
-                    searchSymbols: () => [],
-                    resolveSymbol: () => ({
-                        name: 'GBPUSD=X',
-                        ticker: 'GBPUSD=X',
-                        session: '24x7',
-                        timezone: 'Etc/UTC',
-                        exchange: 'FX',
-                        listed_exchange: 'FX',
-                        type: 'stock'
-                    }),
-                    getBars: (symbolInfo, resolution, rangeStartDate, rangeEndDate, onDataCallback, onErrorCallback) => {
-                        const filteredData = candlestickData.filter(bar => bar.time >= rangeStartDate && bar.time <= rangeEndDate);
-                        onDataCallback(filteredData, { noData: false });
-                    }
-                },
-                library_path: "https://unpkg.com/@tradingview/charting-library@latest/",
-                locale: "en",
-                disabled_features: ["header_widget", "use_localstorage_for_settings"]
+        const chart = new TradingView.widget({
+            autosize: true,
+            symbol: "GBPUSD=X",
+            interval: "60",  // 60 دقيقة كإعداد افتراضي
+            container_id: "chart",
+            datafeed: new Datafeeds.UDFCompatibleDatafeed({}),
+            library_path: "https://cdn.jsdelivr.net/npm/@tradingview/charting-library@latest/charting_library.min.js",
+            theme: "Light",
+            timezone: "Etc/UTC",
+            studies_overrides: {},
+            chart_type: "candlestick",
+            toolbar_bg: "#f1f3f6"
+        });
+        
+        chart.onChartReady(() => {
+            chart.addCandlestickSeries({
+                upColor: '#4fff72',
+                borderUpColor: '#4fff72',
+                wickUpColor: '#4fff72',
+                downColor: '#ff4976',
+                borderDownColor: '#ff4976',
+                wickDownColor: '#ff4976'
             });
-        }
 
-        // تهيئة الشارت عند تحميل الصفحة
-        initializeChart();
-    </script>
+            chart.updateData(candlestickData);
+        });
+    }
+
+    initializeChart();
+</script>
+
 </body>
 </html>
