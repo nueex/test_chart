@@ -3,84 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candlestick Chart with Live Update</title>
-    <script type="text/javascript" src="https://unpkg.com/lightweight-charts@3.6.0/dist/lightweight-charts.standalone.production.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            background-color: #f4f4f4;
-            font-family: Arial, sans-serif;
-        }
-        #chart {
-            width: 100%;
-            height: 500px;
-        }
-    </style>
+    <title>Candlestick Chart - TradingView</title>
+    <script type="text/javascript" src="https://unpkg.com/@tradingview/charting-library@latest/charting_library.min.js"></script>
 </head>
 <body>
-    <div id="chart"></div>
+    <div id="tv_chart_container" style="height: 600px; width: 100%;"></div>
 
-    <script type="text/javascript">
-        // بيانات الشموع (يمكنك تحديثها من مصدر خارجي أو API)
-        let candlestickData = [
-            { time: '2024-11-01', open: 1.25, high: 1.35, low: 1.15, close: 1.30 },
-            { time: '2024-11-02', open: 1.30, high: 1.40, low: 1.20, close: 1.25 },
-            { time: '2024-11-03', open: 1.25, high: 1.35, low: 1.15, close: 1.30 },
-            { time: '2024-11-04', open: 1.30, high: 1.40, low: 1.20, close: 1.35 },
-            { time: '2024-11-05', open: 1.35, high: 1.45, low: 1.25, close: 1.40 }
-        ];
+    <script>
+        const apiUrl = 'https://fxtrade-test.onrender.com/candlestick_data?currency_pair=GBPUSD=X&api_key=81579d9059d44032ba4ca8c40e15267b';
 
-        // تحويل الوقت من String إلى Timestamp (ثواني)
-        candlestickData.forEach(data => {
-            data.time = new Date(data.time).getTime() / 1000;  // تحويل الوقت إلى timestamp
-        });
+        // دالة لجلب البيانات
+        async function fetchCandlestickData() {
+            const response = await fetch(apiUrl);
+            const data = await response.json();
 
-        // إنشاء المخطط
-        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-            width: window.innerWidth,
-            height: 500,
-            layout: {
-                backgroundColor: '#ffffff',
-                textColor: '#000000',
-            },
-            grid: {
-                vertLines: {
-                    color: '#eee',
+            const candlesticks = data.map(item => ({
+                time: new Date(item["('Datetime', '')"]).getTime() / 1000, // تحويل التاريخ إلى UNIX timestamp
+                open: item["('Open', 'GBPUSD=X')"],
+                high: item["('High', 'GBPUSD=X')"],
+                low: item["('Low', 'GBPUSD=X')"],
+                close: item["('Close', 'GBPUSD=X')"]
+            }));
+
+            return candlesticks;
+        }
+
+        // دالة لتهيئة الشارت
+        async function initializeChart() {
+            const candlestickData = await fetchCandlestickData();
+
+            const widget = new TradingView.widget({
+                autosize: true,
+                symbol: 'GBPUSD=X', // هذا يمكن تغييره حسب العملة
+                interval: '60', // يمكن تغييره حسب الحاجة
+                container_id: "tv_chart_container",
+                datafeed: {
+                    onReady: cb => cb(),
+                    searchSymbols: () => [],
+                    resolveSymbol: () => ({
+                        name: 'GBPUSD=X',
+                        ticker: 'GBPUSD=X',
+                        session: '24x7',
+                        timezone: 'Etc/UTC',
+                        exchange: 'FX',
+                        listed_exchange: 'FX',
+                        type: 'stock'
+                    }),
+                    getBars: (symbolInfo, resolution, rangeStartDate, rangeEndDate, onDataCallback, onErrorCallback) => {
+                        const filteredData = candlestickData.filter(bar => bar.time >= rangeStartDate && bar.time <= rangeEndDate);
+                        onDataCallback(filteredData, { noData: false });
+                    }
                 },
-                horzLines: {
-                    color: '#eee',
-                },
-            },
-            crosshair: {
-                vertLine: {
-                    color: '#ff6600',
-                    width: 1,
-                },
-                horzLine: {
-                    color: '#ff6600',
-                    width: 1,
-                },
-            },
-        });
+                library_path: "https://unpkg.com/@tradingview/charting-library@latest/",
+                locale: "en",
+                disabled_features: ["header_widget", "use_localstorage_for_settings"]
+            });
+        }
 
-        // إضافة سلسلة الشموع إلى المخطط
-        const candleSeries = chart.addCandlestickSeries();
-        candleSeries.setData(candlestickData);
-
-        // تحديث البيانات كل دقيقة (تحديث بيانات الشموع من API أو مصدر بيانات آخر)
-        setInterval(() => {
-            // هنا نقوم بتحديث البيانات (يمكنك الحصول عليها من API أو قاعدة بيانات)
-            // على سبيل المثال، قم بإضافة شمعة جديدة أو تحديث القيم
-            const newData = [
-                { time: Math.floor(Date.now() / 1000), open: Math.random() * 1.5, high: Math.random() * 2, low: Math.random() * 1.5, close: Math.random() * 1.8 }
-            ];
-            // إضافة بيانات جديدة للمخطط
-            candlestickData = [...candlestickData, ...newData];
-            // تحديث المخطط بالبيانات الجديدة
-            candleSeries.setData(candlestickData);
-        }, 60000); // كل 60 ثانية (دقيقة)
+        // تهيئة الشارت عند تحميل الصفحة
+        initializeChart();
     </script>
 </body>
 </html>
